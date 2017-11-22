@@ -13,27 +13,27 @@ def build_dec(source):
         lin_dim = np.prod(np.array(h0_shape[1:]))
         hidden = linear(source, lin_dim)
         h0 = tf.reshape(hidden, h0_shape)
-        h0 = batch_norm(h0, name='lt_bm')
+        h0 = batch_norm(h0, name='lt_bn')
         h0 = tf.nn.relu(h0)
 
     with tf.variable_scope('deconv_1'):
         h1 = deconv2d(h0, h1_shape, name='dec_deconv2d_1')
-        h2 = batch_norm(h1, name='dec_deconv2d_bm_1')
+        h2 = batch_norm(h1, name='dec_deconv2d_bn_1')
         h1 = tf.nn.relu(h1)
 
     with tf.variable_scope('deconv_2'):
         h2 = deconv2d(h1, h2_shape, name='dec_deconv2d_2')
-        h2 = batch_norm(h2, name='dec_deconv2d_bm_2')
+        h2 = batch_norm(h2, name='dec_deconv2d_bn_2')
         h2 = tf.nn.relu(h2)
 
     with tf.variable_scope('deconv_3'):
         h3 = deconv2d(h2, h3_shape, name='dec_deconv2d_3')
-        h3 = batch_norm(h3, name='dec_deconv2d_bm_3')
+        h3 = batch_norm(h3, name='dec_deconv2d_bn_3')
         h3 = tf.nn.relu(h3)
 
     with tf.variable_scope('deconv_4'):
         output = deconv2d(h3, output_shape, name='dec_deconv2d_4')
-        output = tf.nn.tanh(output) # ?
+        output = tf.nn.tanh(output)/2.0 + 0.5 # normalize
 
     print(h0.get_shape())
     print(h1.get_shape())
@@ -53,16 +53,23 @@ def build_critic(source):
         print(source_shape)
 
     with tf.variable_scope('conv_1'):
-        h1 = conv2d(source, source_shape[1], name='dec_conv2d_1')
+        h1 = conv2d(source, source_shape[1], name='dis_conv2d_1')
+        # no BN?
         h1 = lrelu(h1)
     with tf.variable_scope('conv_2'):
-        h2 = conv2d(h1, source_shape[1]*2, name='dec_conv2d_2')
+        h2 = conv2d(h1, source_shape[1]*2, name='dis_conv2d_2')
+        #h2 = batch_norm(h2, name='dis_conv2d_bn_2')
         h2 = lrelu(h2)
     with tf.variable_scope('conv_3'):
-        h3 = conv2d(h2, source_shape[1]*4, name='dec_conv2d_3')
+        h3 = conv2d(h2, source_shape[1]*4, name='dis_conv2d_3')
+        #h3 = batch_norm(h3, name='dis_conv2d_bn_3')
         h3 = lrelu(h3)
+    with tf.variable_scope('conv_4'):
+        h4 = conv2d(h3, source_shape[1]*8, name='dis_conv2d_4')
+        #h4 = batch_norm(h4, name='dis_conv2d_bn_4')
+        h4 = lrelu(h4)
     with tf.variable_scope('flatten_and_linear'):
-        h_flat = tf.contrib.layers.flatten(h3)
+        h_flat = tf.contrib.layers.flatten(h4)
         output = linear(h_flat, 1)
 
     print(source.get_shape())

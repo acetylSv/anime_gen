@@ -3,30 +3,29 @@ import random
 from ops import *
 from model import *
 import tensorflow as tf
-import dataset
 
-tf.set_random_seed(123)
-np.random.seed(123)
-random.seed(123)
+#tf.set_random_seed(123)
+#np.random.seed(123)
+#random.seed(123)
 
 TARGET = 'anime_gen'
 LOG_DIR = './log/'+TARGET
 DATA_DIR = './data/faces'
 
-LEARNING_RATE = 0.0001
+LEARNING_RATE = 0.0002
 BETA_1 = 0.5
 BETA_2 = 0.9
 
 LAMBDA = 10
 
-BATCH_SIZE = 32
+BATCH_SIZE = 64
 
-MAX_ITERATION = 1000000
+MAX_ITERATION = 150000
 SAVE_PERIOD = 10000
 SUMMARY_PERIOD = 50
 
-NUM_CRITIC_TRAIN = 4
-NUM_GEN_TRAIN = 1
+NUM_CRITIC_TRAIN = 5
+NUM_GEN_TRAIN = 2
 
 # Load Data
 from glob import glob
@@ -36,7 +35,7 @@ import skimage.io
 import skimage.transform
 input_fname_pattern = '*.jpg'
 data = glob(os.path.join(DATA_DIR, input_fname_pattern))
-img_list = [skimage.transform.resize(scipy.misc.imread(x), (64, 64)) for idx, x in enumerate(data) if idx < 1000]
+img_list = [skimage.transform.resize(scipy.misc.imread(x), (64, 64)) for x in data]
 
 #import skipthoughts
 #model = skipthoughts.load_model()
@@ -52,10 +51,15 @@ with tf.variable_scope('input'):
 with tf.variable_scope('generator'):
     fake_img = build_dec(z)
 
+with tf.variable_scope('interpolate'):
+    alpha = tf.random_uniform(shape=[BATCH_SIZE,1,1], minval=0.,maxval=1.)
+    interpolates = alpha * real_img + (1 - alpha) * fake_img
+
 with tf.variable_scope('discriminator') as scope:
     _, v_real = build_critic(real_img)
     scope.reuse_variables()
     _, v_fake  = build_critic(fake_img)
+    _, v_hat  = build_critic(interpolates)
 
 c_vars = [v for v in tf.trainable_variables() if v.name.startswith('discriminator')]
 g_vars = [v for v in tf.trainable_variables() if v.name.startswith('generator')]
@@ -71,8 +75,12 @@ g_optimizer = tf.train.AdamOptimizer(LEARNING_RATE,BETA_1,BETA_2)
 
 # Discriminator Loss
 W = tf.reduce_mean(v_real) - tf.reduce_mean(v_fake)
+#GP = tf.reduce_mean(
+#        (tf.sqrt(tf.reduce_sum(tf.gradients(v_fake, fake_img)[0]**2,reduction_indices=[1,2,3]))-1.0)**2
+#     )
 GP = tf.reduce_mean(
-        (tf.sqrt(tf.reduce_sum(tf.gradients(v_fake, fake_img)[0]**2,reduction_indices=[1,2,3]))-1.0)**2
+        (tf.sqrt(tf.reduce_sum(
+            tf.gradients(v_hat, interpolates)[0]**2,reduction_indices=[1,2,3]))-1.0)**2
      )
 loss_c = -1.0*W + LAMBDA*GP
 with tf.variable_scope('c_train') :
@@ -87,7 +95,7 @@ with tf.variable_scope('g_train') :
 
 # tensorboard usage
 tf.summary.image('real_a', real_img, max_outputs=10)
-tf.summary.image('fake_a', fake_img, max_outputs=10)
+tf.summary.image('fake_a', fake_img, max_outputs=20)
 tf.summary.scalar('Estimated W', W)
 tf.summary.scalar('gradient_penalty', GP)
 tf.summary.scalar('loss_g', loss_g)
@@ -95,7 +103,7 @@ summary_op = tf.summary.merge_all()
 
 # initialize and saver
 init_op = tf.global_variables_initializer()
-saver = tf.train.Saver(max_to_keep=5)
+saver = tf.train.Saver(max_to_keep=20)
 sess = tf.Session()
 
 # if model exist, restore, else init a new one
@@ -114,17 +122,28 @@ try:
     coord = tf.train.Coordinator()
     threads = tf.train.start_queue_runners(sess=sess, coord=coord)
 
+    def _shuffle(X):
+        randomize = np.arange(len(X), dtype=np.int32)
+        np.random.shuffle(randomize)
+        print(randomize)
+        return (X[randomize])
+
     batch_step_num = len(img_list) // BATCH_SIZE
-    for step in range(MAX_ITERATION+1):
+    for step in range(1, MAX_ITERATION+1):
         if coord.should_stop():
             break
+
+        # shuffle real images
+        #if step % batch_step_num == 0:
+        #img_list = _shuffle(img_list)
+        #print('shuffle done')
 
         # generate noise z and a batch of real images
         batch_z = np.array(np.random.multivariate_normal(np.zeros(z_dim, dtype=np.float32),
             np.identity(z_dim, dtype=np.float32), BATCH_SIZE), dtype=np.float32)
         batch_images = np.array(img_list[(step%batch_step_num)*BATCH_SIZE:(step%batch_step_num+1)*BATCH_SIZE],
             dtype=np.float32)
-        
+
         # training discriminator
         for _ in range(NUM_CRITIC_TRAIN):
             _ = sess.run(train_c_op,
