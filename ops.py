@@ -1,15 +1,15 @@
 import numpy as np
 import tensorflow as tf
 
-def linear(input_, output_size, stddev=0.02):
+def linear(input_, output_size, stddev=0.02, name='linear'):
     shape = input_.get_shape().as_list()
-    with tf.variable_scope("Linear"):
+    with tf.variable_scope(name):
         W = tf.get_variable("W", [shape[-1], output_size], tf.float32,
                                      tf.random_normal_initializer(stddev=stddev))
         b = tf.get_variable("b", [output_size])
     return tf.matmul(input_, W) + b
 
-def conv2d(input_, output_dim, k_h=5, k_w=5, d_h=2, d_w=2, stddev=0.02, name="conv2d"):
+def conv2d(input_, output_dim, k_h=5, k_w=5, d_h=2, d_w=2, stddev=0.02, name='conv2d'):
     with tf.variable_scope(name):
         W = tf.get_variable('W',
                 [k_h, k_w, input_.get_shape()[-1], output_dim],
@@ -44,28 +44,16 @@ def batch_norm(x, name='batch_norm'):
             scope=name)
     return y
 
+def instance_norm(x, name='instance_norm'):
+    axis = [1,2] # for format: NHWC
+    epsilon = 1e-5
+    mean, var = tf.nn.moments(x, axis, keep_dims=True)
+    return (x - mean) / tf.sqrt(var+epsilon)
+
 def lrelu(x, leak=0.2, name="lrelu"):
     return tf.maximum(x, leak*x)
 
-class InstanceNorm():
-    def __init__(self,name,format='NCHW',epsilon=1e-5) :
-        assert(format=='NCHW' or format=='NHWC')
-        self.axis = [2,3] if format == 'NCHW' else [1,2]
-
-        self.epsilon = epsilon
-        self.name = name
-
-    def __call__(self,input_var) :
-        mean, var = tf.nn.moments(input_var, self.axis, keep_dims=True)
-        return (input_var - mean) / tf.sqrt(var+self.epsilon)
-
-class Lrelu(object):
-    def __init__(self,leak=0.2,name='lrelu') :
-        self.leak = leak
-        self.name = name
-    def __call__(self, x) :
-        return tf.maximum(x, self.leak*x, name=self.name)
-
+'''
 class ResidualBlock() :
     def __init__(self,name,filters,filter_size=3,non_linearity=Lrelu,normal_method=InstanceNorm) :
         self.conv_1 = Conv2d(name+'_1',filters,filters,filter_size,filter_size,1,1)
@@ -78,3 +66,4 @@ class ResidualBlock() :
         _t = self.nl(_t)
         _t = self.conv_2(_t)
         return input_var + _t
+'''

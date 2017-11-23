@@ -21,7 +21,7 @@ LAMBDA = 10
 BATCH_SIZE = 64
 
 MAX_ITERATION = 150000
-SAVE_PERIOD = 10000
+SAVE_PERIOD = 300
 SUMMARY_PERIOD = 50
 
 NUM_CRITIC_TRAIN = 5
@@ -36,6 +36,7 @@ import skimage.transform
 input_fname_pattern = '*.jpg'
 data = glob(os.path.join(DATA_DIR, input_fname_pattern))
 img_list = [skimage.transform.resize(scipy.misc.imread(x), (64, 64)) for x in data]
+#img_list = [skimage.transform.resize(scipy.misc.imread(x), (64, 64)) for idx, x in enumerate(data) if idx < 1000]
 
 #import skipthoughts
 #model = skipthoughts.load_model()
@@ -52,7 +53,7 @@ with tf.variable_scope('generator'):
     fake_img = build_dec(z)
 
 with tf.variable_scope('interpolate'):
-    alpha = tf.random_uniform(shape=[BATCH_SIZE,1,1], minval=0.,maxval=1.)
+    alpha = tf.random_uniform(shape=[BATCH_SIZE,1,1,1], minval=0.,maxval=1.)
     interpolates = alpha * real_img + (1 - alpha) * fake_img
 
 with tf.variable_scope('discriminator') as scope:
