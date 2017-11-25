@@ -2,3 +2,5 @@ __pycache__/
 log/
 old_log/
 data/
+result/
+temp_model/

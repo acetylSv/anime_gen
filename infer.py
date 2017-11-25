@@ -47,14 +47,15 @@ try:
         if coord.should_stop():
             break
         
-        BATCH_SIZE = 10
+        BATCH_SIZE = 30
         # generate noise z and a batch of real images
         batch_z = np.array(np.random.multivariate_normal(np.zeros(z_dim, dtype=np.float32),
             np.identity(z_dim, dtype=np.float32), BATCH_SIZE), dtype=np.float32)
         fake_img_eval = sess.run(fake_img, feed_dict={z:batch_z})
         print(fake_img_eval.shape)
         for idx, img in enumerate(fake_img_eval):
-            scipy.misc.imsave('result/%d.jpg' % idx, img)
+            save_path = os.path.join(sys.argv[2], '%d.jpg' % idx)
+            scipy.misc.imsave(save_path, img)
 
 except Exception as e:
     coord.request_stop(e)
