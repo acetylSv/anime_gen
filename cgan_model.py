@@ -1,17 +1,23 @@
 from ops import *
 
-def build_dec(source):
+def build_dec(source, tag):
     source_shape = source.get_shape().as_list()
+    tag_shape = tag.get_shape().as_list()
     batch_size = tf.shape(source)[0]
+    tah_h_dim = 32
     h0_shape = [batch_size, 4, 4, 1024]
     h1_shape = [batch_size, 8, 8, 512]
     h2_shape = [batch_size, 16, 16, 256]
     h3_shape = [batch_size, 32, 32, 128]
     output_shape = [batch_size, 64, 64, 3]
 
+    with tf.variable_scope('tag_transform'):
+        tag_h = linear(tag, tag_h_dim, name='tag_linear')
+
     with tf.variable_scope('project_and_reshape'):
+        source_with_condition = tf.concat([source, tag], axis=1)
         lin_dim = np.prod(np.array(h0_shape[1:]))
-        hidden = linear(source, lin_dim, name='dec_project_linear')
+        hidden = linear(source_with_condition, lin_dim, name='dec_project_linear')
         h0 = tf.reshape(hidden, h0_shape)
         #h0 = batch_norm(h0, name='lt_bn')
         h0 = instance_norm(h0, name='lt_bn')
@@ -62,18 +68,22 @@ def build_critic(source):
     with tf.variable_scope('conv_1'):
         h1 = conv2d(source, source_shape[1], name='dis_conv2d_1')
         #h1 = batch_norm(h1, name='dis_conv2d_bn_1')
+        h1 = instance_norm(h1, name='dis_conv2d_in_1')
         h1 = lrelu(h1)
     with tf.variable_scope('conv_2'):
         h2 = conv2d(h1, source_shape[1]*2, name='dis_conv2d_2')
         #h2 = batch_norm(h2, name='dis_conv2d_bn_2')
+        h2 = instance_norm(h2, name='dis_conv2d_in_2')
         h2 = lrelu(h2)
     with tf.variable_scope('conv_3'):
         h3 = conv2d(h2, source_shape[1]*4, name='dis_conv2d_3')
         #h3 = batch_norm(h3, name='dis_conv2d_bn_3')
+        h3 = instance_norm(h3, name='dis_conv2d_in_3')
         h3 = lrelu(h3)
     with tf.variable_scope('conv_4'):
         h4 = conv2d(h3, source_shape[1]*8, name='dis_conv2d_4')
         #h4 = batch_norm(h4, name='dis_conv2d_bn_4')
+        h4 = instance_norm(h4, name='dis_conv2d_in_4')
         h4 = lrelu(h4)
     with tf.variable_scope('output'):
         h_flat = tf.contrib.layers.flatten(h4)

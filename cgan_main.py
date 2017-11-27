@@ -1,7 +1,7 @@
 import numpy as np
 import random
 from ops import *
-from model import *
+from cgan_model import *
 import tensorflow as tf
 
 #tf.set_random_seed(123)
@@ -25,11 +25,11 @@ LAMBDA = 10
 BATCH_SIZE = 64
 
 MAX_ITERATION = 150000
-SAVE_PERIOD = 300
+SAVE_PERIOD = 4000
 SUMMARY_PERIOD = 50
 
-NUM_CRITIC_TRAIN = 5
-NUM_GEN_TRAIN = 2
+NUM_CRITIC_TRAIN = 10
+NUM_GEN_TRAIN = 1
 
 # Load Data
 from glob import glob
