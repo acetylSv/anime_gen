@@ -58,21 +58,26 @@ with tf.variable_scope('input'):
     fake_tag = tf.placeholder(tf.float32, [None, tag_dim], name='fake_tag')
     real_img = tf.placeholder(tf.float32, [None, 64, 64, 3], name='real_img')
 
+with tf.variable_scope('tag_h_gen') as scope:
+    real_tag_h = tag_transform(real_tag)
+    scope.reuse_variables()
+    fake_tag_h = tag_transform(fake_tag)
+
 with tf.variable_scope('generator'):
-    fake_img = build_dec(z, real_tag)
+    fake_img = build_dec(z, real_tag_h)
 
 with tf.variable_scope('interpolate'):
     alpha = tf.random_uniform(shape=[BATCH_SIZE,1,1,1], minval=0.,maxval=1.)
     interpolates = alpha * real_img + (1 - alpha) * fake_img
 
 with tf.variable_scope('discriminator') as scope:
-    _, v_r = build_critic(real_img, real_tag)
+    _, v_r = build_critic(real_img, real_tag_h)
     scope.reuse_variables()
-    _, v_w  = build_critic(real_img, fake_tag)
-    _, v_f  = build_critic(fake_img, real_tag)
+    _, v_w  = build_critic(real_img, fake_tag_h)
+    _, v_f  = build_critic(fake_img, real_tag_h)
     
-    _, v_hat_w = build_critic(interpolates, fake_tag)
-    _, v_hat_f = build_critic(interpolates, real_tag)
+    _, v_hat_w = build_critic(interpolates, fake_tag_h)
+    _, v_hat_f = build_critic(interpolates, real_tag_h)
 
 c_vars = [v for v in tf.trainable_variables() if v.name.startswith('discriminator')]
 g_vars = [v for v in tf.trainable_variables() if v.name.startswith('generator')]

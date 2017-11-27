@@ -1,21 +1,27 @@
 from ops import *
 
-def build_dec(source, tag):
-    source_shape = source.get_shape().as_list()
+def tag_transform(tag):
+    tag_h_dim = 32
     tag_shape = tag.get_shape().as_list()
+    
+    with tf.variable_scope('tag_transform'):
+        tag_h = linear(tag, tag_h_dim, name='tag_linear')
+        tag_h = tf.nn.relu(tag_h)
+
+    return tag_h
+
+def build_dec(source, tag_h):
+    source_shape = source.get_shape().as_list()
+    tag_shape = tag_h.get_shape().as_list()
     batch_size = tf.shape(source)[0]
-    tah_h_dim = 32
     h0_shape = [batch_size, 4, 4, 1024]
     h1_shape = [batch_size, 8, 8, 512]
     h2_shape = [batch_size, 16, 16, 256]
     h3_shape = [batch_size, 32, 32, 128]
     output_shape = [batch_size, 64, 64, 3]
 
-    with tf.variable_scope('tag_transform'):
-        tag_h = linear(tag, tag_h_dim, name='tag_linear')
-
     with tf.variable_scope('project_and_reshape'):
-        source_with_condition = tf.concat([source, tag], axis=1)
+        source_with_condition = tf.concat([source, tag_h], axis=1)
         lin_dim = np.prod(np.array(h0_shape[1:]))
         hidden = linear(source_with_condition, lin_dim, name='dec_project_linear')
         h0 = tf.reshape(hidden, h0_shape)
@@ -55,7 +61,7 @@ def build_dec(source, tag):
 
     return output
 
-def build_critic(source):
+def build_critic(source, tag_h):
     # no BN in discriminator
     source_shape = source.get_shape().as_list()
     print(source_shape)
