@@ -12,7 +12,7 @@ def _shuffle(X):
     np.random.shuffle(randomize)
     return(np.array(X)[randomize])
 
-TARGET = 'anime_gen'
+TARGET = 'condition_anime_gen'
 LOG_DIR = './log/'+TARGET
 DATA_DIR = './data/faces'
 
@@ -28,7 +28,7 @@ MAX_ITERATION = 150000
 SAVE_PERIOD = 4000
 SUMMARY_PERIOD = 50
 
-NUM_CRITIC_TRAIN = 10
+NUM_CRITIC_TRAIN = 4
 NUM_GEN_TRAIN = 1
 
 # Load Data
@@ -71,28 +71,30 @@ with tf.variable_scope('interpolate'):
     interpolates = alpha * real_img + (1 - alpha) * fake_img
 
 with tf.variable_scope('discriminator') as scope:
-    _, v_r = build_critic(real_img, real_tag_h)
+    _, v_r, for_test = build_critic(real_img, real_tag_h)
     scope.reuse_variables()
-    _, v_w  = build_critic(real_img, fake_tag_h)
-    _, v_f  = build_critic(fake_img, real_tag_h)
+    _, v_w, _  = build_critic(real_img, fake_tag_h)
+    _, v_f, _  = build_critic(fake_img, real_tag_h)
     
     #_, v_hat_w = build_critic(interpolates, fake_tag_h)
-    _, v_hat_f = build_critic(interpolates, real_tag_h)
+    _, v_hat_f, _ = build_critic(interpolates, real_tag_h)
 
-c_vars = [v for v in tf.trainable_variables() if v.name.startswith('discriminator')]
-g_vars = [v for v in tf.trainable_variables() if v.name.startswith('generator')]
+c_vars = [v for v in tf.trainable_variables() if
+    v.name.startswith('discriminator') or v.name.startswith('tag_h_gen')]
+g_vars = [v for v in tf.trainable_variables() if v.name.startswith('generator')
+    or v.name.startswith('tag_h_gen')]
 
 # show variables
 #for v in c_vars : print(v)
 #print('----------------------')
 #for v in g_vars : print(v)
-exit()
+
 # Define Loss and Optimizer
 c_optimizer = tf.train.AdamOptimizer(LEARNING_RATE, BETA_1, BETA_2)
 g_optimizer = tf.train.AdamOptimizer(LEARNING_RATE, BETA_1, BETA_2)
 
 # Discriminator Loss
-W = tf.reduce_mean(v_r) - (tf.reduce_mean(v_w) + tf.reduce_mean(v_f) / 2)
+W = tf.reduce_mean(v_r) - ((tf.reduce_mean(v_w) + tf.reduce_mean(v_f)) / 2.0)
 #GP = tf.reduce_mean(
 #        (tf.sqrt(tf.reduce_sum(tf.gradients(v_fake, fake_img)[0]**2,reduction_indices=[1,2,3]))-1.0)**2
 #     )
@@ -121,7 +123,7 @@ with tf.variable_scope('g_train'):
 # tensorboard usage
 tf.summary.image('real_a', real_img, max_outputs=10)
 tf.summary.image('fake_a', fake_img, max_outputs=20)
-tf.summary.text('real_tag', real_tag, max_outputs=20)
+tf.summary.tensor_summary('real_tag', real_tag)
 tf.summary.scalar('Estimated W', W)
 tf.summary.scalar('gradient_penalty', GP)
 tf.summary.scalar('loss_g', loss_g)
@@ -166,7 +168,7 @@ try:
             dtype=np.float32)
         batch_real_tags = tagvec[(step%batch_step_num)*BATCH_SIZE:(step%batch_step_num+1)*BATCH_SIZE]
         batch_fake_tags = rdm_tagvec[(step%batch_step_num)*BATCH_SIZE:(step%batch_step_num+1)*BATCH_SIZE]
-        continue
+        
         # training discriminator
         for _ in range(NUM_CRITIC_TRAIN):
             _ = sess.run(train_c_op,

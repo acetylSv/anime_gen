@@ -65,7 +65,6 @@ def build_critic(source, tag_h):
     # no BN in discriminator
     source_shape = source.get_shape().as_list()
     tag_shape = tag_h.get_shape().as_list()
-    print(source_shape)
     if source_shape[1] is None:
         print('Source reshaping')
         source = tf.reshape(source, [-1, 64, 64, 3])
@@ -117,4 +116,4 @@ def build_critic(source, tag_h):
     print(h5.get_shape())
     print(output.get_shape())
 
-    return tf.nn.sigmoid(output), output
+    return tf.nn.sigmoid(output), output, h_concat
