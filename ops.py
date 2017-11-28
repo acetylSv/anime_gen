@@ -9,12 +9,13 @@ def linear(input_, output_size, stddev=0.02, name='linear'):
         b = tf.get_variable("b", [output_size])
     return tf.matmul(input_, W) + b
 
-def conv2d(input_, output_dim, k_h=5, k_w=5, d_h=2, d_w=2, stddev=0.02, name='conv2d'):
+def conv2d(input_, output_dim, k_h=5, k_w=5, d_h=2, d_w=2, stddev=0.02,
+    name='conv2d', padding='SAME'):
     with tf.variable_scope(name):
         W = tf.get_variable('W',
                 [k_h, k_w, input_.get_shape()[-1], output_dim],
                 initializer=tf.truncated_normal_initializer(stddev=stddev))
-        conv = tf.nn.conv2d(input_, W, strides=[1, d_h, d_w, 1], padding='SAME')
+        conv = tf.nn.conv2d(input_, W, strides=[1, d_h, d_w, 1], padding=padding)
 
         b = tf.get_variable('b', [output_dim],
             initializer=tf.constant_initializer(0.0))

@@ -13,7 +13,7 @@ def tag_transform(tag):
 def build_dec(source, tag_h):
     source_shape = source.get_shape().as_list()
     tag_shape = tag_h.get_shape().as_list()
-    batch_size = tf.shape(source)[0]
+    batch_size = source_shape[0]
     h0_shape = [batch_size, 4, 4, 1024]
     h1_shape = [batch_size, 8, 8, 512]
     h2_shape = [batch_size, 16, 16, 256]
@@ -64,6 +64,7 @@ def build_dec(source, tag_h):
 def build_critic(source, tag_h):
     # no BN in discriminator
     source_shape = source.get_shape().as_list()
+    tag_shape = tag_h.get_shape().as_list()
     print(source_shape)
     if source_shape[1] is None:
         print('Source reshaping')
@@ -91,17 +92,28 @@ def build_critic(source, tag_h):
         #h4 = batch_norm(h4, name='dis_conv2d_bn_4')
         h4 = instance_norm(h4, name='dis_conv2d_in_4')
         h4 = lrelu(h4)
-    with tf.variable_scope('output'):
-        h_flat = tf.contrib.layers.flatten(h4)
-        h5 = linear(h_flat, 512, name='dis_output_linear_1')
+    with tf.variable_scope('concat_tag'):
+        current_dim = h4.get_shape().as_list()
+        tag_h = tf.expand_dims(tag_h, 1)
+        tag_h = tf.expand_dims(tag_h, 1)
+        target = tf.tile(tag_h, [1, current_dim[1], current_dim[1], 1])
+        h_concat = tf.concat([h4, target], axis=3)
+    with tf.variable_scope('one_one_conv'):
+        h5 = conv2d(h_concat, h_concat.get_shape().as_list()[-1]/2, k_h=1, k_w=1,
+            d_h=1, d_w=1, name='dis_1x1_conv2d')
+        #h5 = batch_norm(h5, name='dis_1x1_conv2d_bn')
+        h5 = instance_norm(h5, name='dis_1x1_conv2d_in')
         h5 = lrelu(h5)
-        output = linear(h5, 1, name='dis_output_linear_2')
+    with tf.variable_scope('output'):
+        output = conv2d(h5, 1, k_h=4, k_w=4, d_h=1, d_w=1,
+            name='dis_output_conv2d', padding='VALID')
 
     print(source.get_shape())
     print(h1.get_shape())
     print(h2.get_shape())
     print(h3.get_shape())
-    print(h_flat.get_shape())
+    print(h4.get_shape())
+    print(h_concat.get_shape())
     print(h5.get_shape())
     print(output.get_shape())
 

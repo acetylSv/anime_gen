@@ -53,10 +53,10 @@ img_list = [skimage.transform.resize(scipy.misc.imread(x), (64, 64)) for idx, x 
 with tf.variable_scope('input'):
     z_dim = 100
     tag_dim = 29
-    z = tf.placeholder(tf.float32, [None, z_dim], name='z')
-    real_tag = tf.placeholder(tf.float32, [None, tag_dim], name='real_tag')
-    fake_tag = tf.placeholder(tf.float32, [None, tag_dim], name='fake_tag')
-    real_img = tf.placeholder(tf.float32, [None, 64, 64, 3], name='real_img')
+    z = tf.placeholder(tf.float32, [BATCH_SIZE, z_dim], name='z')
+    real_tag = tf.placeholder(tf.float32, [BATCH_SIZE, tag_dim], name='real_tag')
+    fake_tag = tf.placeholder(tf.float32, [BATCH_SIZE, tag_dim], name='fake_tag')
+    real_img = tf.placeholder(tf.float32, [BATCH_SIZE, 64, 64, 3], name='real_img')
 
 with tf.variable_scope('tag_h_gen') as scope:
     real_tag_h = tag_transform(real_tag)
@@ -76,7 +76,7 @@ with tf.variable_scope('discriminator') as scope:
     _, v_w  = build_critic(real_img, fake_tag_h)
     _, v_f  = build_critic(fake_img, real_tag_h)
     
-    _, v_hat_w = build_critic(interpolates, fake_tag_h)
+    #_, v_hat_w = build_critic(interpolates, fake_tag_h)
     _, v_hat_f = build_critic(interpolates, real_tag_h)
 
 c_vars = [v for v in tf.trainable_variables() if v.name.startswith('discriminator')]
@@ -86,7 +86,7 @@ g_vars = [v for v in tf.trainable_variables() if v.name.startswith('generator')]
 #for v in c_vars : print(v)
 #print('----------------------')
 #for v in g_vars : print(v)
-
+exit()
 # Define Loss and Optimizer
 c_optimizer = tf.train.AdamOptimizer(LEARNING_RATE, BETA_1, BETA_2)
 g_optimizer = tf.train.AdamOptimizer(LEARNING_RATE, BETA_1, BETA_2)
@@ -96,15 +96,16 @@ W = tf.reduce_mean(v_r) - (tf.reduce_mean(v_w) + tf.reduce_mean(v_f) / 2)
 #GP = tf.reduce_mean(
 #        (tf.sqrt(tf.reduce_sum(tf.gradients(v_fake, fake_img)[0]**2,reduction_indices=[1,2,3]))-1.0)**2
 #     )
-GP1 = tf.reduce_mean(
-        (tf.sqrt(tf.reduce_sum(
-            tf.gradients(v_hat_w, interpolates)[0]**2,reduction_indices=[1,2,3]))-1.0)**2
-     )
+#GP1 = tf.reduce_mean(
+#        (tf.sqrt(tf.reduce_sum(
+#            tf.gradients(v_hat_w, interpolates)[0]**2,reduction_indices=[1,2,3]))-1.0)**2
+#     )
 GP2 = tf.reduce_mean(
         (tf.sqrt(tf.reduce_sum(
             tf.gradients(v_hat_f, interpolates)[0]**2,reduction_indices=[1,2,3]))-1.0)**2
      )
-GP = GP1+GP2
+#GP = GP1+GP2
+GP = GP2
 
 loss_c = -1.0*W + LAMBDA*GP
 with tf.variable_scope('c_train'):
