@@ -25,10 +25,10 @@ LAMBDA = 10
 BATCH_SIZE = 64
 
 MAX_ITERATION = 150000
-SAVE_PERIOD = 4000
-SUMMARY_PERIOD = 50
+SAVE_PERIOD = 1000
+SUMMARY_PERIOD = 200
 
-NUM_CRITIC_TRAIN = 4
+NUM_CRITIC_TRAIN = 6
 NUM_GEN_TRAIN = 1
 
 # Load Data
@@ -39,15 +39,13 @@ import skimage.io
 import skimage.transform
 input_fname_pattern = '*.jpg'
 data = glob(os.path.join(DATA_DIR, input_fname_pattern))
+file_name_idx = []
+for i in data:
+    file_name_idx.append(i.strip().split('/')[-1].split('.jpg')[0])
 img_list = [skimage.transform.resize(scipy.misc.imread(x), (64, 64)) for x in data]
-tagvec = np.load(open('tag2vec/tag_vec.npy', 'rb'))
+tagvec = np.load(open('tag2vec/tag_vec.npy', 'rb'))[np.array(file_name_idx, dtype=np.int32)]
 rdm_tagvec = _shuffle(np.array(tagvec))
 #img_list = [skimage.transform.resize(scipy.misc.imread(x), (64, 64)) for idx, x in enumerate(data) if idx < 500]
-
-#import skipthoughts
-#model = skipthoughts.load_model()
-#vecs = skipthoughts.encode(model, ['blue hair red eyes', 'brown hair blue eyes'])
-#print(vec.shape)
 
 # Define Network
 with tf.variable_scope('input'):
@@ -58,31 +56,32 @@ with tf.variable_scope('input'):
     fake_tag = tf.placeholder(tf.float32, [BATCH_SIZE, tag_dim], name='fake_tag')
     real_img = tf.placeholder(tf.float32, [BATCH_SIZE, 64, 64, 3], name='real_img')
 
-with tf.variable_scope('tag_h_gen') as scope:
-    real_tag_h = tag_transform(real_tag)
-    scope.reuse_variables()
-    fake_tag_h = tag_transform(fake_tag)
+with tf.variable_scope('generator_tag_h'):
+    real_tag_h_gen = tag_transform(real_tag)
 
 with tf.variable_scope('generator'):
-    fake_img = build_dec(z, real_tag_h)
+    fake_img = build_dec(z, real_tag_h_gen)
 
 with tf.variable_scope('interpolate'):
     alpha = tf.random_uniform(shape=[BATCH_SIZE,1,1,1], minval=0.,maxval=1.)
     interpolates = alpha * real_img + (1 - alpha) * fake_img
 
-with tf.variable_scope('discriminator') as scope:
-    _, v_r, for_test = build_critic(real_img, real_tag_h)
+with tf.variable_scope('discriminator_tag_h') as scope:
+    real_tag_h_dis = tag_transform(real_tag)
     scope.reuse_variables()
-    _, v_w, _  = build_critic(real_img, fake_tag_h)
-    _, v_f, _  = build_critic(fake_img, real_tag_h)
-    
-    #_, v_hat_w = build_critic(interpolates, fake_tag_h)
-    _, v_hat_f, _ = build_critic(interpolates, real_tag_h)
+    fake_tag_h_dis = tag_transform(fake_tag)
 
-c_vars = [v for v in tf.trainable_variables() if
-    v.name.startswith('discriminator') or v.name.startswith('tag_h_gen')]
-g_vars = [v for v in tf.trainable_variables() if v.name.startswith('generator')
-    or v.name.startswith('tag_h_gen')]
+with tf.variable_scope('discriminator') as scope:
+    _, v_r = build_critic(real_img, real_tag_h_dis)
+    scope.reuse_variables()
+    _, v_w = build_critic(real_img, fake_tag_h_dis)
+    _, v_f = build_critic(fake_img, real_tag_h_dis)
+
+    #_, v_hat_w = build_critic(interpolates, fake_tag_h)
+    _, v_hat_f = build_critic(interpolates, real_tag_h_dis)
+
+c_vars = [v for v in tf.trainable_variables() if v.name.startswith('discriminator')]
+g_vars = [v for v in tf.trainable_variables() if v.name.startswith('generator')]
 
 # show variables
 #for v in c_vars : print(v)
@@ -94,7 +93,7 @@ c_optimizer = tf.train.AdamOptimizer(LEARNING_RATE, BETA_1, BETA_2)
 g_optimizer = tf.train.AdamOptimizer(LEARNING_RATE, BETA_1, BETA_2)
 
 # Discriminator Loss
-W = tf.reduce_mean(v_r) - ((tf.reduce_mean(v_w) + tf.reduce_mean(v_f)) / 2.0)
+W = tf.reduce_mean(v_r) - ((tf.reduce_mean(v_w) + tf.reduce_mean(v_f)) * 0.5)
 #GP = tf.reduce_mean(
 #        (tf.sqrt(tf.reduce_sum(tf.gradients(v_fake, fake_img)[0]**2,reduction_indices=[1,2,3]))-1.0)**2
 #     )
@@ -115,13 +114,13 @@ with tf.variable_scope('c_train'):
     train_c_op = c_optimizer.apply_gradients(gvs)
 
 # Generator Loss
-loss_g = -1.0 * tf.reduce_mean(v_r)
+loss_g = -1.0 * tf.reduce_mean(v_f)
 with tf.variable_scope('g_train'):
     gvs = g_optimizer.compute_gradients(loss_g, var_list=g_vars)
     train_g_op  = g_optimizer.apply_gradients(gvs)
 
 # tensorboard usage
-tf.summary.image('real_a', real_img, max_outputs=10)
+tf.summary.image('real_a', real_img, max_outputs=64)
 tf.summary.image('fake_a', fake_img, max_outputs=64)
 tf.summary.scalar('Estimated W', W)
 tf.summary.scalar('gradient_penalty', GP)
@@ -156,9 +155,8 @@ try:
 
         # shuffle real images
         if step % batch_step_num == 0:
-            img_list = _shuffle(img_list)
             rdm_tagvec = _shuffle(rdm_tagvec)
-            print('shuffle done')
+            print('shuffle rdm_tagvec done')
         
         # generate noise z and a batch of real images
         batch_z = np.array(np.random.multivariate_normal(np.zeros(z_dim, dtype=np.float32),
@@ -170,7 +168,7 @@ try:
         
         # training discriminator
         for _ in range(NUM_CRITIC_TRAIN):
-            _ = sess.run(train_c_op,
+            _  = sess.run(train_c_op,
                             feed_dict={
                                 real_img:batch_images,
                                 z:batch_z,
@@ -192,7 +190,9 @@ try:
         if( step % SUMMARY_PERIOD == 0 ):
             print('=========================')
             print('Step %d, True Tag:' % step)
-            print(batch_real_tags)
+            for i in batch_real_tags:
+                print(i)
+                print(attr_lookup(i))
             print('=========================')
             summary_str = sess.run(summary_op,
                 feed_dict={

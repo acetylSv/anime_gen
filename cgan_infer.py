@@ -6,22 +6,24 @@ import skimage.io
 import skimage.transform
 
 from ops import *
-from model import *
-
-#import skipthoughts
-#model = skipthoughts.load_model()
-#vecs = skipthoughts.encode(model, ['blue hair red eyes', 'brown hair blue eyes'])
-#print(vec.shape)
+from cgan_model import *
 
 LOG_DIR = sys.argv[1]
+attr = sys.argv[2]
+BATCH_SIZE = 10
 
 # Define Network
 with tf.variable_scope('input'):
     z_dim = 100
-    z = tf.placeholder(tf.float32, [None, z_dim], name='z')
+    tag_dim = 29
+    z = tf.placeholder(tf.float32, [BATCH_SIZE, z_dim], name='z')
+    real_tag = tf.placeholder(tf.float32, [BATCH_SIZE, tag_dim], name='real_tag')
+
+with tf.variable_scope('generator_tag_h'):
+    real_tag_h_gen = tag_transform(real_tag)
 
 with tf.variable_scope('generator'):
-    fake_img = build_dec(z)
+    fake_img = build_dec(z, real_tag_h_gen)
 
 # initialize and saver
 init_op = tf.global_variables_initializer()
@@ -46,13 +48,17 @@ try:
     for step in range(1):
         if coord.should_stop():
             break
-        
-        BATCH_SIZE = 10
+
         # generate noise z and a batch of real images
         batch_z = np.array(np.random.multivariate_normal(np.zeros(z_dim, dtype=np.float32),
             np.identity(z_dim, dtype=np.float32), BATCH_SIZE), dtype=np.float32)
-        fake_img_eval = sess.run(fake_img, feed_dict={z:batch_z})
-        print(fake_img_eval.shape)
+        batch_real_tags = np.tile(
+            np.expand_dims(attr_txt2vec(attr), 0),
+                    [1,BATCH_SIZE])
+        print(batch_real_tags)
+        exit()
+        fake_img_eval = sess.run(fake_img, feed_dict={z:batch_z, real_tag:batch_real_tags})
+        
         for idx, img in enumerate(fake_img_eval):
             scipy.misc.imsave('result/%d.jpg' % idx, img)
 

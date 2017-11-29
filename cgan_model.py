@@ -98,7 +98,7 @@ def build_critic(source, tag_h):
         target = tf.tile(tag_h, [1, current_dim[1], current_dim[1], 1])
         h_concat = tf.concat([h4, target], axis=3)
     with tf.variable_scope('one_one_conv'):
-        h5 = conv2d(h_concat, h_concat.get_shape().as_list()[-1]/2, k_h=1, k_w=1,
+        h5 = conv2d(h_concat, h_concat.get_shape().as_list()[-1]//2, k_h=1, k_w=1,
             d_h=1, d_w=1, name='dis_1x1_conv2d')
         #h5 = batch_norm(h5, name='dis_1x1_conv2d_bn')
         h5 = instance_norm(h5, name='dis_1x1_conv2d_in')
@@ -116,4 +116,4 @@ def build_critic(source, tag_h):
     print(h5.get_shape())
     print(output.get_shape())
 
-    return tf.nn.sigmoid(output), output, h_concat
+    return tf.nn.sigmoid(output), output

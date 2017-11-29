@@ -54,6 +54,37 @@ def instance_norm(x, name='instance_norm'):
 def lrelu(x, leak=0.2, name="lrelu"):
     return tf.maximum(x, leak*x)
 
+
+attr_dict = {
+    'orange hair':1, 'white hair':2, 'aqua hair':3, 'gray hair':4,
+    'green hair':5, 'red hair':6, 'purple hair':7, 'pink hair':8,
+    'blue hair':9, 'black hair':10, 'brown hair':11, 'blonde hair':12,
+    'no_hair_color':13,
+
+    'short hair':14, 'long hair':15,
+    'no_hair_length':16,
+
+    'gray eyes':17, 'bicolored eyes':18, 'black eyes':19, 'orange eyes':20,
+    'pink eyes':21, 'yellow eyes':22, 'aqua eyes':23, 'purple eyes':24,
+    'green eyes':25, 'brown eyes':26, 'red eyes':27, 'blue eyes':28,
+    'no_eyes_color':29
+    }
+inv_map = {v: k for k, v in attr_dict.items()}
+
+def attr_lookup(vec):
+    attrs = []
+    for attr_idx in list(np.where(vec==1))[0]:
+        attrs.append(inv_map[attr_idx+1])
+    return attrs
+
+def attr_txt2vec(txt):
+    # one attr to one vec
+    attrs = txt.strip().split(',')
+    vec = np.zeros(29)
+    for attr_txt in attrs:
+        vec[attr_dict[attr_txt]-1] = 1
+    return vec
+
 '''
 class ResidualBlock() :
     def __init__(self,name,filters,filter_size=3,non_linearity=Lrelu,normal_method=InstanceNorm) :
