@@ -39,10 +39,10 @@ import skimage.io
 import skimage.transform
 input_fname_pattern = '*.jpg'
 data = glob(os.path.join(DATA_DIR, input_fname_pattern))
-#img_list = [skimage.transform.resize(scipy.misc.imread(x), (64, 64)) for x in data]
+img_list = [skimage.transform.resize(scipy.misc.imread(x), (64, 64)) for x in data]
 tagvec = np.load(open('tag2vec/tag_vec.npy', 'rb'))
 rdm_tagvec = _shuffle(np.array(tagvec))
-img_list = [skimage.transform.resize(scipy.misc.imread(x), (64, 64)) for idx, x in enumerate(data) if idx < 500]
+#img_list = [skimage.transform.resize(scipy.misc.imread(x), (64, 64)) for idx, x in enumerate(data) if idx < 500]
 
 #import skipthoughts
 #model = skipthoughts.load_model()
@@ -122,8 +122,7 @@ with tf.variable_scope('g_train'):
 
 # tensorboard usage
 tf.summary.image('real_a', real_img, max_outputs=10)
-tf.summary.image('fake_a', fake_img, max_outputs=20)
-tf.summary.tensor_summary('real_tag', real_tag)
+tf.summary.image('fake_a', fake_img, max_outputs=64)
 tf.summary.scalar('Estimated W', W)
 tf.summary.scalar('gradient_penalty', GP)
 tf.summary.scalar('loss_g', loss_g)
@@ -190,7 +189,11 @@ try:
 
         print('%7d : W : %1.6f, GP : %1.6f, Loss G : %1.6f' % (step, W_eval, GP_eval, loss_g_eval))
         
-        if( step % SUMMARY_PERIOD == 0 ) :
+        if( step % SUMMARY_PERIOD == 0 ):
+            print('=========================')
+            print('Step %d, True Tag:' % step)
+            print(batch_real_tags)
+            print('=========================')
             summary_str = sess.run(summary_op,
                 feed_dict={
                     real_img:batch_images,
