@@ -120,8 +120,8 @@ with tf.variable_scope('g_train'):
     train_g_op  = g_optimizer.apply_gradients(gvs)
 
 # tensorboard usage
-tf.summary.image('real_a', real_img, max_outputs=64)
-tf.summary.image('fake_a', fake_img, max_outputs=64)
+tf.summary.image('real_a', real_img, max_outputs=20)
+tf.summary.image('fake_a', fake_img, max_outputs=20)
 tf.summary.scalar('Estimated W', W)
 tf.summary.scalar('gradient_penalty', GP)
 tf.summary.scalar('loss_g', loss_g)

@@ -48,15 +48,16 @@ try:
     for step in range(1):
         if coord.should_stop():
             break
-
+        
         # generate noise z and a batch of real images
         batch_z = np.array(np.random.multivariate_normal(np.zeros(z_dim, dtype=np.float32),
             np.identity(z_dim, dtype=np.float32), BATCH_SIZE), dtype=np.float32)
-        batch_real_tags = np.tile(
-            np.expand_dims(attr_txt2vec(attr), 0),
-                    [1,BATCH_SIZE])
+        batch_real_tags = np.reshape(
+            np.tile(np.expand_dims(attr_txt2vec(attr), 0),[1,BATCH_SIZE]),
+            [BATCH_SIZE, tag_dim]
+                )
         print(batch_real_tags)
-        exit()
+        
         fake_img_eval = sess.run(fake_img, feed_dict={z:batch_z, real_tag:batch_real_tags})
         
         for idx, img in enumerate(fake_img_eval):

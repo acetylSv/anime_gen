@@ -101,7 +101,7 @@ def build_critic(source, tag_h):
         h5 = conv2d(h_concat, h_concat.get_shape().as_list()[-1]//2, k_h=1, k_w=1,
             d_h=1, d_w=1, name='dis_1x1_conv2d')
         #h5 = batch_norm(h5, name='dis_1x1_conv2d_bn')
-        h5 = instance_norm(h5, name='dis_1x1_conv2d_in')
+        #h5 = instance_norm(h5, name='dis_1x1_conv2d_in')
         h5 = lrelu(h5)
     with tf.variable_scope('output'):
         output = conv2d(h5, 1, k_h=4, k_w=4, d_h=1, d_w=1,
