@@ -13,10 +13,10 @@ def _shuffle(X):
     return(np.array(X)[randomize])
 
 TARGET = 'ACGAN_anime_gen'
-LOG_DIR = './log/'+TARGET
-DATA_DIR = './data/faces'
+LOG_DIR = '/nfs/Valkyrie/acetylsv/log/'+TARGET
+DATA_DIR = '/nfs/Valkyrie/acetylsv/data/faces'
 
-LEARNING_RATE = 0.0001
+LEARNING_RATE = 0.0002
 BETA_1 = 0.5
 BETA_2 = 0.9
 
@@ -202,7 +202,7 @@ try:
         batch_images = np.array(img_list[(step%batch_step_num)*BATCH_SIZE:(step%batch_step_num+1)*BATCH_SIZE],
             dtype=np.float32)
         batch_real_tags = tagvec[(step%batch_step_num)*BATCH_SIZE:(step%batch_step_num+1)*BATCH_SIZE]
-        decay_lambda_rate = np.array(np.max([(1.0-epoch*0.002), 0.25]))
+        decay_lambda_rate = np.array(np.max([(1.0-epoch*0.02), 0.20]))
         
         # training discriminator
         for _ in range(5):
@@ -250,7 +250,28 @@ try:
         
         # save or not
         if( step % SAVE_PERIOD == 0 ):
+            # save model
             saver.save(sess, LOG_DIR+'/model.ckpt', global_step=step)
+            # save result
+            attrs = [
+                'red hair,aqua eyes',
+                'aqua hair,black eyes',
+                'blonde hair,red eyes',
+                'black hair,red eyes',
+                'purple hair,black eyes'
+            ]
+            for attr in attrs:
+                batch_z = np.array(np.random.multivariate_normal(np.zeros(z_dim, dtype=np.float32),
+                               np.identity(z_dim, dtype=np.float32), BATCH_SIZE), dtype=np.float32)
+                batch_test_tags = np.reshape(
+                    np.tile(np.expand_dims(attr_txt2vec(attr), 0),[1,BATCH_SIZE]),
+                    [BATCH_SIZE, tag_dim]
+                )
+                
+                fake_img_eval = sess.run(fake_img, feed_dict={z:batch_z, labels:batch_test_tags})
+        
+                for idx, img in enumerate(fake_img_eval[:10]):
+                    scipy.misc.imsave('AC_result/%d_%s_%d.jpg' % (step, attr.replace(' ', '_').replace(',', '-'), idx), img)
 
 except Exception as e:
     coord.request_stop(e)
